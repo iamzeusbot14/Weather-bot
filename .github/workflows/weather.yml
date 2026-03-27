@@ -1,59 +1,32 @@
-name: 📡 Telegram Animated Weather
+name: 📡 Pro Sequential Weather
 
 on:
   schedule:
-    - cron: '30 0,6,12,18 * * *'
+    - cron: '30 0,6,12,18 * * *' # Trigger 4x a day
   workflow_dispatch:
 
 jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch and Build Animated Report
+      - name: Execute Weather Sequence
         run: |
-          # 1. Fetch live data for Shamli & Mumbai
-          S_DATA=$(curl -s "wttr.in/Shamli?format=%C|%t")
-          M_DATA=$(curl -s "wttr.in/Mumbai?format=%C|%t")
+          # 1. Configuration & Data Fetch
+          # Using %C (Condition), %t (Temp), %w (Wind)
+          S_RAW=$(curl -s "wttr.in/Shamli?format=%C|%t|%w")
+          M_RAW=$(curl -s "wttr.in/Mumbai?format=%C|%t|%w")
 
-          # 2. Map conditions to Telegram's Animated Emoji set
-          get_animated() {
-            local cond=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-            if [[ "$cond" == *"sun"* ]] || [[ "$cond" == *"clear"* ]]; then
-              echo "☀️" # Animated Sun
-            elif [[ "$cond" == *"cloud"* ]] || [[ "$cond" == *"overcast"* ]]; then
-              echo "☁️" # Animated Cloud
-            elif [[ "$cond" == *"rain"* ]] || [[ "$cond" == *"shower"* ]]; then
-              echo "🌧️" # Animated Rain
-            elif [[ "$cond" == *"thunder"* ]]; then
-              echo "⛈️" # Animated Storm
-            elif [[ "$cond" == *"snow"* ]]; then
-              echo "❄️" # Animated Snow
-            else
-              echo "🌫️" # Animated Mist/Haze
-            fi
+          # 2. Logic for Telegram Animated Emojis
+          get_anim() {
+            local c=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+            if [[ "$c" == *"thunder"* ]]; then echo "⛈️";
+            elif [[ "$c" == *"rain"* ]] || [[ "$c" == *"drizzle"* ]]; then echo "🌧️";
+            elif [[ "$c" == *"snow"* ]] || [[ "$c" == *"ice"* ]]; then echo "❄️";
+            elif [[ "$c" == *"smoke"* ]] || [[ "$c" == *"haze"* ]] || [[ "$c" == *"fog"* ]]; then echo "🌫️";
+            elif [[ "$c" == *"cloud"* ]] || [[ "$c" == *"overcast"* ]]; then echo "☁️";
+            elif [[ "$c" == *"sun"* ]] || [[ "$c" == *"clear"* ]]; then echo "☀️";
+            else echo "📡"; fi
           }
 
-          S_ICON=$(get_animated "$(echo $S_DATA | cut -d'|' -f1)")
-          M_ICON=$(get_animated "$(echo $M_DATA | cut -d'|' -f1)")
-
-          # 3. Build the UI with your Dot-Matrix Style
-          MSG="<b>WEATHER . REPORT</b>%0A"
-          MSG+="<code>...........................</code>%0A%0A"
-          
-          MSG+="📍 <b>SHAMLI</b>%0A"
-          MSG+="$S_ICON%0A"
-          MSG+="<code>STATUS ❯ $(echo $S_DATA | cut -d'|' -f1)</code>%0A"
-          MSG+="<code>TEMP   ❯ $(echo $S_DATA | cut -d'|' -f2)</code>%0A%0A"
-
-          MSG+="📍 <b>MUMBAI</b>%0A"
-          MSG+="$M_ICON%0A"
-          MSG+="<code>STATUS ❯ $(echo $M_DATA | cut -d'|' -f1)</code>%0A"
-          MSG+="<code>TEMP   ❯ $(echo $M_DATA | cut -d'|' -f2)</code>%0A%0A"
-          
-          MSG+="<code>...........................</code>"
-
-          # 4. Send via API
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="$MSG" \
-            -d parse_mode="HTML"
+          # Process Shamli
+          S
