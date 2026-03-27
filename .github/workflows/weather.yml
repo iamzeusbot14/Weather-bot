@@ -2,7 +2,7 @@ name: 📡 Pro Sequential Weather
 
 on:
   schedule:
-    - cron: '30 0,6,12,18 * * *' # Trigger 4x a day
+    - cron: '30 0,6,12,18 * * *'
   workflow_dispatch:
 
 jobs:
@@ -11,12 +11,7 @@ jobs:
     steps:
       - name: Execute Weather Sequence
         run: |
-          # 1. Configuration & Data Fetch
-          # Using %C (Condition), %t (Temp), %w (Wind)
-          S_RAW=$(curl -s "wttr.in/Shamli?format=%C|%t|%w")
-          M_RAW=$(curl -s "wttr.in/Mumbai?format=%C|%t|%w")
-
-          # 2. Logic for Telegram Animated Emojis
+          # 1. Logic for Telegram Animated Emojis
           get_anim() {
             local c=$(echo "$1" | tr '[:upper:]' '[:lower:]')
             if [[ "$c" == *"thunder"* ]]; then echo "⛈️";
@@ -28,5 +23,46 @@ jobs:
             else echo "📡"; fi
           }
 
-          # Process Shamli
-          S
+          # 2. Function to Send Individual City Report
+          send_report() {
+            local city_name=$1
+            local emoji=$2
+            local status=$3
+            local temp=$4
+            local wind=$5
+
+            # Send Emoji First (Stand-alone for animation)
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d text="$emoji"
+
+            # Build Report Body
+            REPORT="<b>$city_name</b>%0A"
+            REPORT+="<code>...........................</code>%0A"
+            REPORT+="<code>STATUS ❯ $status</code>%0A"
+            REPORT+="<code>TEMP   ❯ $temp</code>%0A"
+            REPORT+="<code>WIND   ❯ $wind</code>%0A"
+            REPORT+="<code>...........................</code>"
+
+            # Send Detailed Report
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -d text="$REPORT" \
+              -d parse_mode="HTML"
+          }
+
+          # 3. Data Fetch and Execution
+          S_RAW=$(curl -s "wttr.in/Shamli?format=%C|%t|%w")
+          S_COND=$(echo $S_RAW | cut -d'|' -f1)
+          S_TEMP=$(echo $S_RAW | cut -d'|' -f2 | xargs)
+          S_WIND=$(echo $S_RAW | cut -d'|' -f3 | xargs)
+          S_ICON=$(get_anim "$S_COND")
+          send_report "SHAMLI . UP" "$S_ICON" "$S_COND" "$S_TEMP" "$S_WIND"
+
+          sleep 2 # Prevent API rate limiting
+
+          M_RAW=$(curl -s "wttr.in/Mumbai?format=%C|%t|%w")
+          M_COND=$(echo $M_RAW | cut -d'|' -f1)
+          M_TEMP=$(echo $M_RAW | cut -d'|' -f2 | xargs)
+          M_WIND=$(echo $M_RAW | cut -d'|' -f3 | xargs)
+          M_ICON=$(get_anim "$M_COND")
+          send_report "MUMBAI . MH" "$M_ICON" "$M_COND" "$M_TEMP" "$M_WIND"
