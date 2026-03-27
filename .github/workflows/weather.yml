@@ -1,66 +1,60 @@
-name: 📡 Pro Weather Stats
+name: 🔘 Nothing Dot Weather
 
 on:
   schedule:
-    - cron: '30 0,6,12,18 * * *' # 4 times a day (IST: 6AM, 12PM, 6PM, 12AM)
+    - cron: '30 0,6,12,18 * * *'
   workflow_dispatch:
 
 jobs:
-  weather_update:
+  report:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch Google Weather Data
+      - name: Fetch and Map Dot Icons
         run: |
-          # Function to generate a pro progress bar
-          get_bar() {
-            local percent=$1
-            local filled=$((percent / 10))
-            local empty=$((10 - filled))
-            local bar=""
-            for i in $(seq 1 $filled); do bar+="■"; done
-            for i in $(seq 1 $empty); do bar+="□"; done
-            echo "$bar"
+          # 1. Fetch condition and temp for Shamli & Mumbai
+          # Using format "%C|%t" gives us "Condition|+28°C"
+          S_DATA=$(curl -s "wttr.in/Shamli?format=%C|%t")
+          M_DATA=$(curl -s "wttr.in/Mumbai?format=%C|%t")
+
+          S_COND=$(echo $S_DATA | cut -d'|' -f1 | tr '[:upper:]' '[:lower:]')
+          S_TEMP=$(echo $S_DATA | cut -d'|' -f2)
+          
+          M_COND=$(echo $M_DATA | cut -d'|' -f1 | tr '[:upper:]' '[:lower:]')
+          M_TEMP=$(echo $M_DATA | cut -d'|' -f2)
+
+          # 2. Logic to choose the Dot Icon
+          get_icon() {
+            if [[ "$1" == *"sun"* ]] || [[ "$1" == *"clear"* ]]; then
+              echo -e "      . ● .      \n    ● ● ● ● ●    \n    . ● ● ● .    \n    ● ● ● ● ●    \n      . ● .      "
+            elif [[ "$1" == *"cloud"* ]] || [[ "$1" == *"overcast"* ]] || [[ "$1" == *"haze"* ]]; then
+              echo -e "      . . .      \n    . ● ● ● .    \n  ● ● ● ● ● ●  \n    . . . . .    "
+            elif [[ "$1" == *"rain"* ]] || [[ "$1" == *"drizzle"* ]] || [[ "$1" == *"shower"* ]]; then
+              echo -e "    . ● ● .      \n  ● ● ● ● ● ●    \n    . ↓ . ↓ .    \n    . ↓ . ↓ .    "
+            else
+              echo -e "    . . . . .    \n    ● ● ● ● ●    \n    . . . . .    "
+            fi
           }
 
-          # Shamli Stats (Fetched for March 27, 2026)
-          S_TEMP="28°C"
-          S_WIND="8 mph NW"
-          S_RAIN_VAL=18
-          S_BAR=$(get_bar $S_RAIN_VAL)
+          S_ICON=$(get_icon "$S_COND")
+          M_ICON=$(get_icon "$M_COND")
 
-          # Mumbai Stats (Fetched for March 27, 2026)
-          M_TEMP="33°C"
-          M_WIND="15 mph NW"
-          M_RAIN_VAL=5
-          M_BAR=$(get_bar $M_RAIN_VAL)
-
-          # Header Logic
-          HOUR=$(date +%H)
-          if [ $HOUR -lt 12 ]; then ICON="🌅"; GREET="MORNING UPDATE";
-          elif [ $HOUR -lt 17 ]; then ICON="☀️"; GREET="AFTERNOON UPDATE";
-          elif [ $HOUR -lt 21 ]; then ICON="🌆"; GREET="EVENING UPDATE";
-          else ICON="🌙"; GREET="NIGHTLY SUMMARY"; fi
-
-          # Constructing the Message
-          MSG="<b>$ICON $GREET</b>%0A"
-          MSG+="<code>───────────────────────</code>%0A"
+          # 3. Build the Nothing OS Interface
+          MSG="<b>STATUS . REPORT</b>%0A"
+          MSG+="<code>...........................</code>%0A%0A"
           
-          MSG+="📍 <b>SHAMLI, UP</b>%0A"
-          MSG+="🌡 Temp: <code>$S_TEMP</code>%0A"
-          MSG+="🌬 Wind: <code>$S_WIND</code>%0A"
-          MSG+="☔ Rain: <code>$S_RAIN_VAL%</code>%0A"
-          MSG+="<code>$S_BAR</code>%0A%0A"
+          MSG+="<b>SHAMLI . UP</b>%0A"
+          MSG+="<code>$S_ICON</code>%0A"
+          MSG+="<code>TEMP ❯ $S_TEMP</code>%0A"
+          MSG+="<code>TYPE ❯ ${S_COND^^}</code>%0A%0A"
 
-          MSG+="📍 <b>MUMBAI, MH</b>%0A"
-          MSG+="🌡 Temp: <code>$M_TEMP</code>%0A"
-          MSG+="🌬 Wind: <code>$M_WIND</code>%0A"
-          MSG+="☔ Rain: <code>$M_RAIN_VAL%</code>%0A"
-          MSG+="<code>$M_BAR</code>%0A"
+          MSG+="<b>MUMBAI . MH</b>%0A"
+          MSG+="<code>$M_ICON</code>%0A"
+          MSG+="<code>TEMP ❯ $M_TEMP</code>%0A"
+          MSG+="<code>TYPE ❯ ${M_COND^^}</code>%0A%0A"
           
-          MSG+="<code>───────────────────────</code>%0A"
-          MSG+="👤 <i>Verified by Z E U S</i>"
+          MSG+="<code>...........................</code>"
 
-          # Send to Telegram
+          # 4. Send to Telegram
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d text="$MSG" \
