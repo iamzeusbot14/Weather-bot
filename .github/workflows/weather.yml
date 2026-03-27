@@ -1,4 +1,4 @@
-name: 📡 Pure Dot Weather
+name: 📡 Animated Weather Pro
 
 on:
   schedule:
@@ -9,54 +9,48 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch and Build Dot Icons
+      - name: Fetch and Build Animated Report
         run: |
-          # 1. Fetch data for Shamli & Mumbai
-          S_DATA=$(curl -s "wttr.in/Shamli?format=%C|%t|%w")
-          M_DATA=$(curl -s "wttr.in/Mumbai?format=%C|%t|%w")
+          # 1. Fetch live data for Shamli & Mumbai
+          S_DATA=$(curl -s "wttr.in/Shamli?format=%C|%t")
+          M_DATA=$(curl -s "wttr.in/Mumbai?format=%C|%t")
 
-          # 2. Logic for Pure Dot Icons (7x5 Grid)
-          get_icon() {
+          # 2. Logic to choose the Animated Emoji
+          get_animated_emoji() {
             local cond=$(echo "$1" | tr '[:upper:]' '[:lower:]')
             if [[ "$cond" == *"sun"* ]] || [[ "$cond" == *"clear"* ]]; then
-              # Sunny / Clear Icon
-              echo -e "   . . .   \n . . . . . \n . . . . . \n . . . . . \n   . . .   "
-            elif [[ "$cond" == *"cloud"* ]] || [[ "$cond" == *"haze"* ]] || [[ "$cond" == *"overcast"* ]]; then
-              # Cloud Icon
-              echo -e "           \n   . . .   \n . . . . . \n . . . . . \n           "
-            elif [[ "$cond" == *"rain"* ]] || [[ "$cond" == *"drizzle"* ]]; then
-              # Rain Icon
-              echo -e " . . . . . \n           \n  .   .    \n    .   .  \n  .   .    "
+              echo "☀️" # Animated Sun
+            elif [[ "$cond" == *"cloud"* ]] || [[ "$cond" == *"overcast"* ]]; then
+              echo "☁️" # Animated Cloud
+            elif [[ "$cond" == *"smoke"* ]] || [[ "$cond" == *"haze"* ]] || [[ "$cond" == *"fog"* ]]; then
+              echo "🌫️" # Animated Fog/Haze
+            elif [[ "$cond" == *"rain"* ]] || [[ "$cond" == *"shower"* ]]; then
+              echo "🌧️" # Animated Rain
             else
-              # Wind / Other
-              echo -e " . . . . . \n .       . \n . . . . . \n .       . \n . . . . . "
+              echo "🛰️" # Default Tech Icon
             fi
           }
 
-          # 3. Parse and Generate
-          S_COND=$(echo $S_DATA | cut -d'|' -f1)
-          S_ICON=$(get_icon "$S_COND")
-          
-          M_COND=$(echo $M_DATA | cut -d'|' -f1)
-          M_ICON=$(get_icon "$M_COND")
+          S_ICON=$(get_animated_emoji "$(echo $S_DATA | cut -d'|' -f1)")
+          M_ICON=$(get_animated_emoji "$(echo $M_DATA | cut -d'|' -f1)")
 
-          # 4. Build the Message
+          # 3. Build the UI with a Dot-Matrix Frame
           MSG="<b>WEATHER . REPORT</b>%0A"
           MSG+="<code>...........................</code>%0A%0A"
           
           MSG+="📍 <b>SHAMLI</b>%0A"
-          MSG+="<code>$S_ICON</code>%0A"
-          MSG+="<code>STATUS ❯ $S_COND</code>%0A"
+          MSG+="$S_ICON%0A"
+          MSG+="<code>STATUS ❯ $(echo $S_DATA | cut -d'|' -f1)</code>%0A"
           MSG+="<code>TEMP   ❯ $(echo $S_DATA | cut -d'|' -f2)</code>%0A%0A"
 
           MSG+="📍 <b>MUMBAI</b>%0A"
-          MSG+="<code>$M_ICON</code>%0A"
-          MSG+="<code>STATUS ❯ $M_COND</code>%0A"
+          MSG+="$M_ICON%0A"
+          MSG+="<code>STATUS ❯ $(echo $M_DATA | cut -d'|' -f1)</code>%0A"
           MSG+="<code>TEMP   ❯ $(echo $M_DATA | cut -d'|' -f2)</code>%0A%0A"
           
           MSG+="<code>...........................</code>"
 
-          # 5. Send to Telegram
+          # 4. Send to Telegram
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d text="$MSG" \
