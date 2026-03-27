@@ -1,4 +1,4 @@
-name: 📡 Animated Weather Pro
+name: 📡 Telegram Animated Weather
 
 on:
   schedule:
@@ -15,26 +15,28 @@ jobs:
           S_DATA=$(curl -s "wttr.in/Shamli?format=%C|%t")
           M_DATA=$(curl -s "wttr.in/Mumbai?format=%C|%t")
 
-          # 2. Logic to choose the Animated Emoji
-          get_animated_emoji() {
+          # 2. Map conditions to Telegram's Animated Emoji set
+          get_animated() {
             local cond=$(echo "$1" | tr '[:upper:]' '[:lower:]')
             if [[ "$cond" == *"sun"* ]] || [[ "$cond" == *"clear"* ]]; then
               echo "☀️" # Animated Sun
             elif [[ "$cond" == *"cloud"* ]] || [[ "$cond" == *"overcast"* ]]; then
               echo "☁️" # Animated Cloud
-            elif [[ "$cond" == *"smoke"* ]] || [[ "$cond" == *"haze"* ]] || [[ "$cond" == *"fog"* ]]; then
-              echo "🌫️" # Animated Fog/Haze
             elif [[ "$cond" == *"rain"* ]] || [[ "$cond" == *"shower"* ]]; then
               echo "🌧️" # Animated Rain
+            elif [[ "$cond" == *"thunder"* ]]; then
+              echo "⛈️" # Animated Storm
+            elif [[ "$cond" == *"snow"* ]]; then
+              echo "❄️" # Animated Snow
             else
-              echo "🛰️" # Default Tech Icon
+              echo "🌫️" # Animated Mist/Haze
             fi
           }
 
-          S_ICON=$(get_animated_emoji "$(echo $S_DATA | cut -d'|' -f1)")
-          M_ICON=$(get_animated_emoji "$(echo $M_DATA | cut -d'|' -f1)")
+          S_ICON=$(get_animated "$(echo $S_DATA | cut -d'|' -f1)")
+          M_ICON=$(get_animated "$(echo $M_DATA | cut -d'|' -f1)")
 
-          # 3. Build the UI with a Dot-Matrix Frame
+          # 3. Build the UI with your Dot-Matrix Style
           MSG="<b>WEATHER . REPORT</b>%0A"
           MSG+="<code>...........................</code>%0A%0A"
           
@@ -50,7 +52,7 @@ jobs:
           
           MSG+="<code>...........................</code>"
 
-          # 4. Send to Telegram
+          # 4. Send via API
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d text="$MSG" \
