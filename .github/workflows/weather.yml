@@ -1,4 +1,4 @@
-name: 🔘 Nothing Dot Weather
+name: 📡 Pure Dot Weather
 
 on:
   schedule:
@@ -9,52 +9,54 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch and Map Dot Icons
+      - name: Fetch and Build Dot Icons
         run: |
-          # 1. Fetch condition and temp for Shamli & Mumbai
-          # Using format "%C|%t" gives us "Condition|+28°C"
-          S_DATA=$(curl -s "wttr.in/Shamli?format=%C|%t")
-          M_DATA=$(curl -s "wttr.in/Mumbai?format=%C|%t")
+          # 1. Fetch data for Shamli & Mumbai
+          S_DATA=$(curl -s "wttr.in/Shamli?format=%C|%t|%w")
+          M_DATA=$(curl -s "wttr.in/Mumbai?format=%C|%t|%w")
 
-          S_COND=$(echo $S_DATA | cut -d'|' -f1 | tr '[:upper:]' '[:lower:]')
-          S_TEMP=$(echo $S_DATA | cut -d'|' -f2)
-          
-          M_COND=$(echo $M_DATA | cut -d'|' -f1 | tr '[:upper:]' '[:lower:]')
-          M_TEMP=$(echo $M_DATA | cut -d'|' -f2)
-
-          # 2. Logic to choose the Dot Icon
+          # 2. Logic for Pure Dot Icons (7x5 Grid)
           get_icon() {
-            if [[ "$1" == *"sun"* ]] || [[ "$1" == *"clear"* ]]; then
-              echo -e "      . ● .      \n    ● ● ● ● ●    \n    . ● ● ● .    \n    ● ● ● ● ●    \n      . ● .      "
-            elif [[ "$1" == *"cloud"* ]] || [[ "$1" == *"overcast"* ]] || [[ "$1" == *"haze"* ]]; then
-              echo -e "      . . .      \n    . ● ● ● .    \n  ● ● ● ● ● ●  \n    . . . . .    "
-            elif [[ "$1" == *"rain"* ]] || [[ "$1" == *"drizzle"* ]] || [[ "$1" == *"shower"* ]]; then
-              echo -e "    . ● ● .      \n  ● ● ● ● ● ●    \n    . ↓ . ↓ .    \n    . ↓ . ↓ .    "
+            local cond=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+            if [[ "$cond" == *"sun"* ]] || [[ "$cond" == *"clear"* ]]; then
+              # Sunny / Clear Icon
+              echo -e "   . . .   \n . . . . . \n . . . . . \n . . . . . \n   . . .   "
+            elif [[ "$cond" == *"cloud"* ]] || [[ "$cond" == *"haze"* ]] || [[ "$cond" == *"overcast"* ]]; then
+              # Cloud Icon
+              echo -e "           \n   . . .   \n . . . . . \n . . . . . \n           "
+            elif [[ "$cond" == *"rain"* ]] || [[ "$cond" == *"drizzle"* ]]; then
+              # Rain Icon
+              echo -e " . . . . . \n           \n  .   .    \n    .   .  \n  .   .    "
             else
-              echo -e "    . . . . .    \n    ● ● ● ● ●    \n    . . . . .    "
+              # Wind / Other
+              echo -e " . . . . . \n .       . \n . . . . . \n .       . \n . . . . . "
             fi
           }
 
+          # 3. Parse and Generate
+          S_COND=$(echo $S_DATA | cut -d'|' -f1)
           S_ICON=$(get_icon "$S_COND")
+          
+          M_COND=$(echo $M_DATA | cut -d'|' -f1)
           M_ICON=$(get_icon "$M_COND")
 
-          # 3. Build the Nothing OS Interface
-          MSG="<b>STATUS . REPORT</b>%0A"
+          # 4. Build the Message
+          MSG="<b>WEATHER . REPORT</b>%0A"
           MSG+="<code>...........................</code>%0A%0A"
           
-          MSG+="<b>SHAMLI . UP</b>%0A"
+          MSG+="📍 <b>SHAMLI</b>%0A"
           MSG+="<code>$S_ICON</code>%0A"
-          MSG+="<code>TEMP ❯ $S_TEMP</code>%0A"
-          MSG+="<code>TYPE ❯ ${S_COND^^}</code>%0A%0A"
+          MSG+="<code>STATUS ❯ $S_COND</code>%0A"
+          MSG+="<code>TEMP   ❯ $(echo $S_DATA | cut -d'|' -f2)</code>%0A%0A"
 
-          MSG+="<b>MUMBAI . MH</b>%0A"
+          MSG+="📍 <b>MUMBAI</b>%0A"
           MSG+="<code>$M_ICON</code>%0A"
-          MSG+="<code>TEMP ❯ $M_TEMP</code>%0A"
-          MSG+="<code>TYPE ❯ ${M_COND^^}</code>%0A%0A"
+          MSG+="<code>STATUS ❯ $M_COND</code>%0A"
+          MSG+="<code>TEMP   ❯ $(echo $M_DATA | cut -d'|' -f2)</code>%0A%0A"
           
           MSG+="<code>...........................</code>"
 
-          # 4. Send to Telegram
+          # 5. Send to Telegram
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d text="$MSG" \
