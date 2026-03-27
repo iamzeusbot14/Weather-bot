@@ -1,4 +1,4 @@
-name: 📡 Pro Sequential Weather
+name: 📡 Nothing OS Dot-Matrix Pro
 
 on:
   schedule:
@@ -9,60 +9,67 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - name: Execute Weather Sequence
+      - name: Execute Dot-Matrix Sequence
         run: |
-          # 1. Logic for Telegram Animated Emojis
+          # 1. Logic for Animated Emojis
           get_anim() {
             local c=$(echo "$1" | tr '[:upper:]' '[:lower:]')
             if [[ "$c" == *"thunder"* ]]; then echo "⛈️";
             elif [[ "$c" == *"rain"* ]] || [[ "$c" == *"drizzle"* ]]; then echo "🌧️";
-            elif [[ "$c" == *"snow"* ]] || [[ "$c" == *"ice"* ]]; then echo "❄️";
             elif [[ "$c" == *"smoke"* ]] || [[ "$c" == *"haze"* ]] || [[ "$c" == *"fog"* ]]; then echo "🌫️";
-            elif [[ "$c" == *"cloud"* ]] || [[ "$c" == *"overcast"* ]]; then echo "☁️";
+            elif [[ "$c" == *"cloud"* ]]; then echo "☁️";
             elif [[ "$c" == *"sun"* ]] || [[ "$c" == *"clear"* ]]; then echo "☀️";
             else echo "📡"; fi
           }
 
-          # 2. Function to Send Individual City Report
-          send_report() {
-            local city_name=$1
-            local emoji=$2
-            local status=$3
-            local temp=$4
-            local wind=$5
+          # 2. Nothing OS Glyph Progress Bar
+          get_bar() {
+            local p=${1//%/}
+            local filled=$(( (p + 5) / 10 ))
+            local bar=""
+            for i in {1..10}; do
+              if [ $i -le $filled ]; then bar+="⠿"; else bar+="⠂"; fi
+            done
+            echo "$bar"
+          }
 
-            # Send Emoji First (Stand-alone for animation)
+          # 3. Function to Send Dot-Matrix Report
+          send_nothing_report() {
+            local city=$1; local emoji=$2; local stat=$3; local temp=$4;
+            local wind=$5; local humid=$6; local rain=$7;
+
+            # Send Animated Emoji First
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d text="$emoji"
 
-            # Build Report Body
-            REPORT="<b>$city_name</b>%0A"
-            REPORT+="<code>...........................</code>%0A"
-            REPORT+="<code>STATUS ❯ $status</code>%0A"
+            BAR=$(get_bar "$rain")
+
+            # Build Dashboard with Dot Glyphs
+            REPORT="<b>$city</b>%0A"
+            REPORT+="<code>⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶</code>%0A"
+            REPORT+="<code>STATUS ❯ $stat</code>%0A"
             REPORT+="<code>TEMP   ❯ $temp</code>%0A"
             REPORT+="<code>WIND   ❯ $wind</code>%0A"
-            REPORT+="<code>...........................</code>"
+            REPORT+="<code>HUMID  ❯ $humid</code>%0A"
+            REPORT+="<code>PRECIP ❯ $rain</code>%0A"
+            REPORT+="<code>$BAR</code>%0A"
+            REPORT+="<code>⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴⠴</code>"
 
-            # Send Detailed Report
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-              -d text="$REPORT" \
-              -d parse_mode="HTML"
+              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d text="$REPORT" -d parse_mode="HTML"
           }
 
-          # 3. Data Fetch and Execution
-          S_RAW=$(curl -s "wttr.in/Shamli?format=%C|%t|%w")
-          S_COND=$(echo $S_RAW | cut -d'|' -f1)
-          S_TEMP=$(echo $S_RAW | cut -d'|' -f2 | xargs)
-          S_WIND=$(echo $S_RAW | cut -d'|' -f3 | xargs)
-          S_ICON=$(get_anim "$S_COND")
-          send_report "SHAMLI . UP" "$S_ICON" "$S_COND" "$S_TEMP" "$S_WIND"
+          # 4. Fetch and Run
+          S_RAW=$(curl -s "wttr.in/Shamli?format=%C|%t|%w|%h|%p")
+          send_nothing_report "SHAMLI . UP" "$(get_anim "$(echo $S_RAW | cut -d'|' -f1)")" \
+            "$(echo $S_RAW | cut -d'|' -f1)" "$(echo $S_RAW | cut -d'|' -f2 | xargs)" \
+            "$(echo $S_RAW | cut -d'|' -f3 | xargs)" "$(echo $S_RAW | cut -d'|' -f4 | xargs)" \
+            "$(echo $S_RAW | cut -d'|' -f5 | xargs)"
 
-          sleep 2 # Prevent API rate limiting
+          sleep 2
 
-          M_RAW=$(curl -s "wttr.in/Mumbai?format=%C|%t|%w")
-          M_COND=$(echo $M_RAW | cut -d'|' -f1)
-          M_TEMP=$(echo $M_RAW | cut -d'|' -f2 | xargs)
-          M_WIND=$(echo $M_RAW | cut -d'|' -f3 | xargs)
-          M_ICON=$(get_anim "$M_COND")
-          send_report "MUMBAI . MH" "$M_ICON" "$M_COND" "$M_TEMP" "$M_WIND"
+          M_RAW=$(curl -s "wttr.in/Mumbai?format=%C|%t|%w|%h|%p")
+          send_nothing_report "MUMBAI . MH" "$(get_anim "$(echo $M_RAW | cut -d'|' -f1)")" \
+            "$(echo $M_RAW | cut -d'|' -f1)" "$(echo $M_RAW | cut -d'|' -f2 | xargs)" \
+            "$(echo $M_RAW | cut -d'|' -f3 | xargs)" "$(echo $M_RAW | cut -d'|' -f4 | xargs)" \
+            "$(echo $M_RAW | cut -d'|' -f5 | xargs)"
