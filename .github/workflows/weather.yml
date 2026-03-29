@@ -2,7 +2,8 @@ name: 📡 Nothing OS Dot-Matrix Pro
 
 on:
   schedule:
-    - cron: '30 0,6,12,18 * * *'
+    # Triggers once daily at 02:30 UTC (08:00 AM IST)
+    - cron: '30 2 * * *'
   workflow_dispatch:
 
 jobs:
@@ -22,14 +23,12 @@ jobs:
             else echo "📡"; fi
           }
 
-          # 2. FIXED Nothing OS Glyph Progress Bar (Handles 0.0mm)
+          # 2. FIXED Nothing OS Glyph Progress Bar
           get_bar() {
-            # Extract only digits and decimal, then round to nearest integer
             local raw_val=$(echo "$1" | sed 's/[^0-9.]//g')
             local p=$(printf "%.0f" "$raw_val" 2>/dev/null || echo 0)
             
             local filled=$(( (p + 5) / 10 ))
-            # Clamp value between 0 and 10
             if [ $filled -gt 10 ]; then filled=10; fi
             
             local bar=""
@@ -44,13 +43,11 @@ jobs:
             local city=$1; local emoji=$2; local stat=$3; local temp=$4;
             local wind=$5; local humid=$6; local rain=$7;
 
-            # Send Animated Emoji First
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d text="$emoji"
 
             BAR=$(get_bar "$rain")
 
-            # Build Dashboard with Dot Glyphs
             REPORT="<b>$city</b>%0A"
             REPORT+="<code>⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶</code>%0A"
             REPORT+="<code>STATUS ❯ $stat</code>%0A"
